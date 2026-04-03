@@ -97,6 +97,16 @@
     .location-info.success { background: #e8f5e9; color: #2e7d32; }
     .location-info.error { background: #fce4ec; color: #c62828; }
 
+    .checklist {
+      font-size: 13px;
+      margin-bottom: 12px;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    .checklist-item { padding: 3px 0; color: #999; }
+    .checklist-item.done { color: #2e7d32; }
+    .checklist-item.warn { color: #e65100; }
     .action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .action-btn {
       padding: 16px;
@@ -169,6 +179,7 @@
     </div>
 
     <div class="card">
+      <div class="checklist" id="checklist"></div>
       <div class="action-row">
         <button class="action-btn check-in" id="checkInBtn" disabled>Check In</button>
         <button class="action-btn check-out" id="checkOutBtn" disabled>Check Out</button>
@@ -230,14 +241,20 @@
   var retakeBtn = document.getElementById('retakeBtn');
   var photoData = null;
 
+  var cameraReady = false;
+
   async function startCamera() {
     try {
       var stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
       });
       video.srcObject = stream;
+      cameraReady = true;
+      checkReady();
     } catch (err) {
       console.error('Camera error:', err);
+      cameraReady = false;
+      checkReady();
     }
   }
 
@@ -295,7 +312,35 @@
 
   // ---- Ready check ----
   function checkReady() {
-    var ready = selectedEmployee && photoData && geoLat !== null;
+    var checklist = document.getElementById('checklist');
+    // Clear safely
+    while (checklist.firstChild) {
+      checklist.removeChild(checklist.firstChild);
+    }
+
+    var items = [
+      { text: 'Select your name', done: !!selectedEmployee },
+      { text: 'Take a selfie', done: !!photoData },
+      { text: 'GPS location', done: geoLat !== null, optional: true }
+    ];
+
+    items.forEach(function(item) {
+      var div = document.createElement('div');
+      div.className = 'checklist-item';
+      if (item.done) {
+        div.classList.add('done');
+        div.textContent = '[done] ' + item.text;
+      } else if (item.optional) {
+        div.classList.add('warn');
+        div.textContent = '[waiting] ' + item.text + ' (optional)';
+      } else {
+        div.textContent = '[needed] ' + item.text;
+      }
+      checklist.appendChild(div);
+    });
+
+    // Only require employee + photo; GPS is optional
+    var ready = selectedEmployee && photoData;
     document.getElementById('checkInBtn').disabled = !ready;
     document.getElementById('checkOutBtn').disabled = !ready;
   }
@@ -339,6 +384,9 @@
 
   document.getElementById('checkInBtn').addEventListener('click', function() { submit('Check In'); });
   document.getElementById('checkOutBtn').addEventListener('click', function() { submit('Check Out'); });
+
+  // Show checklist on load
+  checkReady();
 </script>
 </body>
 </html>
