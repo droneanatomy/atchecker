@@ -108,6 +108,21 @@
     .checklist-item.done { color: #2e7d32; }
     .checklist-item.warn { color: #e65100; }
     .action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .site-visit-row { margin-top: 10px; }
+    .site-visit {
+      width: 100%;
+      padding: 14px;
+      border: 2px solid #e65100;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      background: #fff;
+      color: #e65100;
+      transition: all 0.2s;
+    }
+    .site-visit:disabled { opacity: 0.4; cursor: not-allowed; }
+    .site-visit:not(:disabled):active { background: #fff3e0; }
     .action-btn {
       padding: 16px;
       border: none;
@@ -184,6 +199,9 @@
         <button class="action-btn check-in" id="checkInBtn" disabled>Check In</button>
         <button class="action-btn check-out" id="checkOutBtn" disabled>Check Out</button>
       </div>
+      <div class="site-visit-row">
+        <button class="site-visit" id="siteVisitBtn" disabled>Site Visit (off-site)</button>
+      </div>
       <div class="status" id="status"></div>
     </div>
 
@@ -192,7 +210,7 @@
 <script>
   // ---- Config (hardcoded) ----
   var CONFIG = {
-    url: 'https://script.google.com/macros/s/AKfycbzXBJ5cCN3RDb45frsBXon_5CE5Wx_z7Fw3MEHdM53Q7E2hGzdIi8vt5Uikm19iILZLhw/exec',
+    url: 'https://script.google.com/macros/s/AKfycbwFKGfFv-AmH7g1IQ9umVBuNruiKyTpgut9UlFBopiiBa9pJ48Mfwk878A2y4F7ScH3tg/exec',
     names: ['Sameer', 'Aniket', 'Suman', 'Harsh', 'Jyoti'],
     officeLat: 28.67550,
     officeLng: 77.35708,
@@ -299,6 +317,7 @@
 
   // ---- Geofence ----
   var atOffice = false;
+  var geoLat = null, geoLng = null;
   var locInfo = document.getElementById('locationInfo');
 
   function checkLocation() {
@@ -311,7 +330,9 @@
     locInfo.className = 'location-info';
     navigator.geolocation.getCurrentPosition(
       function(pos) {
-        var dist = getDistanceMeters(pos.coords.latitude, pos.coords.longitude, CONFIG.officeLat, CONFIG.officeLng);
+        geoLat = pos.coords.latitude;
+        geoLng = pos.coords.longitude;
+        var dist = getDistanceMeters(geoLat, geoLng, CONFIG.officeLat, CONFIG.officeLng);
         var distRounded = Math.round(dist);
         if (dist <= CONFIG.radiusMeters) {
           atOffice = true;
@@ -319,7 +340,7 @@
           locInfo.className = 'location-info success';
         } else {
           atOffice = false;
-          locInfo.textContent = 'Too far from office (' + distRounded + 'm away, need within ' + CONFIG.radiusMeters + 'm)';
+          locInfo.textContent = 'Not at office (' + distRounded + 'm away) — use Site Visit if on-site elsewhere';
           locInfo.className = 'location-info error';
         }
         checkReady();
@@ -365,6 +386,10 @@
     var ready = selectedEmployee && photoData && atOffice;
     document.getElementById('checkInBtn').disabled = !ready;
     document.getElementById('checkOutBtn').disabled = !ready;
+
+    // Site Visit only needs name + selfie (no geofence)
+    var siteReady = selectedEmployee && photoData;
+    document.getElementById('siteVisitBtn').disabled = !siteReady;
   }
 
   // ---- Submit ----
@@ -379,6 +404,12 @@
       photo: photoData,
       device: navigator.userAgent
     };
+
+    // Include GPS coordinates for site visits
+    if (type === 'Site Visit' && geoLat !== null) {
+      payload.latitude = geoLat;
+      payload.longitude = geoLng;
+    }
 
     try {
       // Use URL params — most reliable way to send data to Apps Script from browser
@@ -406,6 +437,7 @@
 
   document.getElementById('checkInBtn').addEventListener('click', function() { submit('Check In'); });
   document.getElementById('checkOutBtn').addEventListener('click', function() { submit('Check Out'); });
+  document.getElementById('siteVisitBtn').addEventListener('click', function() { submit('Site Visit'); });
 
   // Show checklist on load
   checkReady();
