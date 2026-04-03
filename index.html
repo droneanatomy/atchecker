@@ -192,7 +192,7 @@
 <script>
   // ---- Config (hardcoded) ----
   var CONFIG = {
-    url: 'https://script.google.com/macros/s/AKfycbzXxiiATI7vd-6XMtPE2kXi9WpsGkBT3sYHvXxxKFGXxk_dDoJQwzEjHZV6tdEt2R866w/exec',
+    url: 'https://script.google.com/macros/s/AKfycbzXBJ5cCN3RDb45frsBXon_5CE5Wx_z7Fw3MEHdM53Q7E2hGzdIi8vt5Uikm19iILZLhw/exec',
     names: ['Sameer', 'Aniket', 'Suman', 'Harsh', 'Jyoti'],
     officeLat: 28.67550,
     officeLng: 77.35708,
@@ -381,11 +381,13 @@
     };
 
     try {
+      // Use URL params — most reliable way to send data to Apps Script from browser
+      var params = new URLSearchParams();
+      params.append('data', JSON.stringify(payload));
       await fetch(CONFIG.url, {
         method: 'POST',
         mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify(payload)
+        body: params
       });
 
       status.className = 'status success';
