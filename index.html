@@ -381,13 +381,11 @@
     };
 
     try {
-      // Use form data — Apps Script receives it reliably via e.parameter
-      var formData = new FormData();
-      formData.append('data', JSON.stringify(payload));
       await fetch(CONFIG.url, {
         method: 'POST',
         mode: 'no-cors',
-        body: formData
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(payload)
       });
 
       status.className = 'status success';
