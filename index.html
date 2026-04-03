@@ -155,7 +155,7 @@
     </div>
 
     <h1>Attendance Tracker</h1>
-    <p class="subtitle">Take a geotagged selfie to mark attendance</p>
+    <p class="subtitle">Take a selfie at the office to mark attendance</p>
 
     <div class="card">
       <h2>Who are you?</h2>
@@ -174,8 +174,8 @@
     </div>
 
     <div class="card">
-      <h2>Location</h2>
-      <div class="location-info" id="locationInfo">Acquiring GPS location...</div>
+      <h2>Office Check</h2>
+      <div class="location-info" id="locationInfo">Checking your location...</div>
     </div>
 
     <div class="card">
@@ -192,9 +192,24 @@
 <script>
   // ---- Config (hardcoded) ----
   var CONFIG = {
-    url: 'https://script.google.com/macros/s/AKfycbwWdhwZ6g2-e-j2Qac0LSCKnzsRC6ghWOLS4SBAJQzWshYBM53eB68qR5MKyv7NOZtpdg/exec',
-    names: ['Sameer', 'Aniket', 'Suman', 'Harsh', 'Jyoti']
+    url: 'https://script.google.com/macros/s/AKfycbzXxiiATI7vd-6XMtPE2kXi9WpsGkBT3sYHvXxxKFGXxk_dDoJQwzEjHZV6tdEt2R866w/exec',
+    names: ['Sameer', 'Aniket', 'Suman', 'Harsh', 'Jyoti'],
+    officeLat: 28.67550,
+    officeLng: 77.35708,
+    radiusMeters: 100
   };
+
+  // Haversine formula — distance between two lat/lng points in meters
+  function getDistanceMeters(lat1, lng1, lat2, lng2) {
+    var R = 6371000;
+    var toRad = Math.PI / 180;
+    var dLat = (lat2 - lat1) * toRad;
+    var dLng = (lng2 - lng1) * toRad;
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad) *
+            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
 
   // ---- Clock ----
   function updateClock() {
@@ -282,33 +297,44 @@
 
   startCamera();
 
-  // ---- Geolocation ----
-  var geoLat = null, geoLng = null;
+  // ---- Geofence ----
+  var atOffice = false;
   var locInfo = document.getElementById('locationInfo');
 
-  function getLocation() {
+  function checkLocation() {
     if (!navigator.geolocation) {
-      locInfo.textContent = 'Geolocation not supported';
+      locInfo.textContent = 'Geolocation not supported - cannot verify location';
       locInfo.className = 'location-info error';
       return;
     }
+    locInfo.textContent = 'Checking your location...';
+    locInfo.className = 'location-info';
     navigator.geolocation.getCurrentPosition(
       function(pos) {
-        geoLat = pos.coords.latitude;
-        geoLng = pos.coords.longitude;
-        locInfo.textContent = 'Location: ' + geoLat.toFixed(5) + ', ' + geoLng.toFixed(5) + ' (accuracy: ' + Math.round(pos.coords.accuracy) + 'm)';
-        locInfo.className = 'location-info success';
+        var dist = getDistanceMeters(pos.coords.latitude, pos.coords.longitude, CONFIG.officeLat, CONFIG.officeLng);
+        var distRounded = Math.round(dist);
+        if (dist <= CONFIG.radiusMeters) {
+          atOffice = true;
+          locInfo.textContent = 'You are at the office (' + distRounded + 'm away)';
+          locInfo.className = 'location-info success';
+        } else {
+          atOffice = false;
+          locInfo.textContent = 'Too far from office (' + distRounded + 'm away, need within ' + CONFIG.radiusMeters + 'm)';
+          locInfo.className = 'location-info error';
+        }
         checkReady();
       },
       function(err) {
-        locInfo.textContent = 'Location denied - please enable GPS';
+        atOffice = false;
+        locInfo.textContent = 'Location denied - please enable GPS to verify you are at the office';
         locInfo.className = 'location-info error';
+        checkReady();
       },
       { enableHighAccuracy: true, timeout: 15000 }
     );
   }
-  getLocation();
-  setInterval(getLocation, 30000);
+  checkLocation();
+  setInterval(checkLocation, 30000);
 
   // ---- Ready check ----
   function checkReady() {
@@ -321,7 +347,7 @@
     var items = [
       { text: 'Select your name', done: !!selectedEmployee },
       { text: 'Take a selfie', done: !!photoData },
-      { text: 'GPS location', done: geoLat !== null, optional: true }
+      { text: 'At the office', done: atOffice }
     ];
 
     items.forEach(function(item) {
@@ -330,17 +356,13 @@
       if (item.done) {
         div.classList.add('done');
         div.textContent = '[done] ' + item.text;
-      } else if (item.optional) {
-        div.classList.add('warn');
-        div.textContent = '[waiting] ' + item.text + ' (optional)';
       } else {
         div.textContent = '[needed] ' + item.text;
       }
       checklist.appendChild(div);
     });
 
-    // Only require employee + photo; GPS is optional
-    var ready = selectedEmployee && photoData;
+    var ready = selectedEmployee && photoData && atOffice;
     document.getElementById('checkInBtn').disabled = !ready;
     document.getElementById('checkOutBtn').disabled = !ready;
   }
@@ -354,8 +376,6 @@
     var payload = {
       name: selectedEmployee,
       type: type,
-      latitude: geoLat,
-      longitude: geoLng,
       photo: photoData,
       device: navigator.userAgent
     };
