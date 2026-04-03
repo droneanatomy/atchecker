@@ -28,7 +28,7 @@
 
     .employee-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 8px;
     }
     .emp-btn {
@@ -135,22 +135,6 @@
     }
     .date-display { text-align: center; font-size: 14px; color: #666; margin-top: 2px; }
 
-    .config-toggle { text-align: center; margin-top: 16px; }
-    .config-toggle button {
-      background: none; border: none; color: #999;
-      font-size: 12px; cursor: pointer; text-decoration: underline;
-    }
-    .config-panel { display: none; margin-top: 8px; }
-    .config-panel.show { display: block; }
-    .config-panel input, .config-panel textarea {
-      width: 100%; padding: 10px; border: 1px solid #ddd;
-      border-radius: 8px; font-size: 14px; margin-bottom: 8px; font-family: inherit;
-    }
-    .config-panel label { font-size: 12px; color: #666; display: block; margin-bottom: 4px; }
-    .save-config {
-      width: 100%; padding: 10px; background: #4361ee; color: #fff;
-      border: none; border-radius: 8px; font-size: 14px; cursor: pointer;
-    }
   </style>
 </head>
 <body>
@@ -192,42 +176,14 @@
       <div class="status" id="status"></div>
     </div>
 
-    <div class="config-toggle">
-      <button id="configToggleBtn">Setup</button>
-    </div>
-    <div class="config-panel card" id="configPanel">
-      <label>Google Apps Script URL</label>
-      <input type="url" id="cfgUrl" placeholder="https://script.google.com/macros/s/.../exec">
-      <label>Employee Names (one per line)</label>
-      <textarea id="cfgNames" rows="4" placeholder="Alice&#10;Bob&#10;Charlie&#10;Diana"></textarea>
-      <button class="save-config" id="saveConfigBtn">Save Configuration</button>
-    </div>
   </div>
 
 <script>
-  // ---- Config ----
-  const DEFAULT_NAMES = ['Employee 1', 'Employee 2', 'Employee 3', 'Employee 4'];
-  let CONFIG = {
-    url: localStorage.getItem('att_url') || '',
-    names: JSON.parse(localStorage.getItem('att_names') || 'null') || DEFAULT_NAMES
+  // ---- Config (hardcoded) ----
+  var CONFIG = {
+    url: 'https://script.google.com/macros/s/AKfycbwWdhwZ6g2-e-j2Qac0LSCKnzsRC6ghWOLS4SBAJQzWshYBM53eB68qR5MKyv7NOZtpdg/exec',
+    names: ['Sameer', 'Aniket', 'Suman', 'Harsh', 'Jyoti']
   };
-
-  document.getElementById('configToggleBtn').addEventListener('click', function() {
-    const p = document.getElementById('configPanel');
-    p.classList.toggle('show');
-    document.getElementById('cfgUrl').value = CONFIG.url;
-    document.getElementById('cfgNames').value = CONFIG.names.join('\n');
-  });
-
-  document.getElementById('saveConfigBtn').addEventListener('click', function() {
-    CONFIG.url = document.getElementById('cfgUrl').value.trim();
-    const raw = document.getElementById('cfgNames').value.trim();
-    CONFIG.names = raw ? raw.split('\n').map(function(n) { return n.trim(); }).filter(Boolean) : DEFAULT_NAMES;
-    localStorage.setItem('att_url', CONFIG.url);
-    localStorage.setItem('att_names', JSON.stringify(CONFIG.names));
-    renderEmployees();
-    document.getElementById('configPanel').classList.remove('show');
-  });
 
   // ---- Clock ----
   function updateClock() {
@@ -346,11 +302,6 @@
 
   // ---- Submit ----
   async function submit(type) {
-    if (!CONFIG.url) {
-      alert('Please configure the Google Apps Script URL first (tap Setup at the bottom)');
-      return;
-    }
-
     var status = document.getElementById('status');
     status.className = 'status sending';
     status.textContent = 'Sending attendance...';
